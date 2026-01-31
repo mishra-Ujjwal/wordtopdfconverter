@@ -24,7 +24,7 @@ function Home() {
 
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}convertFile`,
+        `${import.meta.env.VITE_BACKEND_URL}/convertFile`,
         formData,
         { responseType: "blob" }
 
