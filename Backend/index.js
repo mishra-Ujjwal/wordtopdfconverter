@@ -1,66 +1,83 @@
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
-const docxToPDF = require("docx-pdf");
+const libre = require("libreoffice-convert");
 const path = require("path");
-const app = express();
-const port = 3000;
-const dotenv = require("dotenv")
+const fs = require("fs");
+const dotenv = require("dotenv");
+
 dotenv.config();
 
+const app = express();
+const port = process.env.PORT || 3000;
+
+/* -------------------- CORS -------------------- */
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   })
 );
 
-//setting of the storage
+/* -------------------- CREATE FOLDERS -------------------- */
+const uploadDir = path.join(__dirname, "uploads");
+const filesDir = path.join(__dirname, "files");
 
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir);
+
+/* -------------------- MULTER SETUP -------------------- */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads");
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    cb(null, file.originalname);
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
-app.post("/convertFile", upload.single("file"), (req, res, next) => {
+/* -------------------- ROUTE -------------------- */
+app.post("/convertFile", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        message: "please upload a file",
-      });
+      return res.status(400).json({ message: "Please upload a file" });
     }
-    //defining the output file path'
-    let outputPath = path.join(
-      __dirname,
-      "files",
-      `${req.file.originalname}.pdf`,
+
+    const inputPath = req.file.path;
+    const outputPath = path.join(
+      filesDir,
+      `${path.parse(req.file.filename).name}.pdf`
     );
 
-    docxToPDF(req.file.path, outputPath, (err, result) => {
+    const docxBuffer = fs.readFileSync(inputPath);
+
+    libre.convert(docxBuffer, ".pdf", undefined, (err, done) => {
       if (err) {
-        console.log(err);
+        console.error("LibreOffice error:", err);
         return res.status(500).json({
-          message: "error converting to pdf",
+          message: "Error converting DOCX to PDF",
         });
       }
+
+      fs.writeFileSync(outputPath, done);
+
       res.download(outputPath, () => {
-        console.log("file download");
+        // cleanup (optional but good practice)
+        fs.unlinkSync(inputPath);
+        fs.unlinkSync(outputPath);
       });
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({
-      message: "internal server error",
+      message: "Internal server error",
     });
   }
 });
 
+/* -------------------- SERVER -------------------- */
 app.listen(port, () => {
-  console.log(`server is running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });

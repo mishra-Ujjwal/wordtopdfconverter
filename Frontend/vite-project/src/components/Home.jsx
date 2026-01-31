@@ -10,7 +10,7 @@ function Home() {
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
-  }; 
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -24,20 +24,21 @@ function Home() {
 
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}convertFile`,
+        `${import.meta.env.VITE_BACKEND_URL}/convertFile`,
         formData,
-        { responseType: "blob" }
-
-
+        {
+          withCredentials: true,
+          responseType: "blob",
+        },
       );
       console.log(response);
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
-      link.href = url; 
+      link.href = url;
       link.setAttribute(
         "download",
-        selectedFile.name.replace(/\.[^/.]+$/, "") + ".pdf"
+        selectedFile.name.replace(/\.[^/.]+$/, "") + ".pdf",
       );
       document.body.appendChild(link);
       link.click();
@@ -49,14 +50,11 @@ function Home() {
     } catch (error) {
       console.error(error);
 
-      if(error.response && error.response.status==400){
- setDownloadError("Error occurred: " + error.response.data.message);
-     
+      if (error.response && error.response.status == 400) {
+        setDownloadError("Error occurred: " + error.response.data.message);
+      } else {
+        setConvert("");
       }
-      else{
- setConvert("");
-      }
-     
     }
   };
 
@@ -97,10 +95,13 @@ function Home() {
                 Convert File
               </button>
 
-{ convert && (<div className="text-green-500 text-center" >{convert}</div>) }
+              {convert && (
+                <div className="text-green-500 text-center">{convert}</div>
+              )}
 
-
-{ downloadError && (<div className="text-red-500 text-center" >{downloadError}</div>) }
+              {downloadError && (
+                <div className="text-red-500 text-center">{downloadError}</div>
+              )}
             </div>
           </div>
         </div>
